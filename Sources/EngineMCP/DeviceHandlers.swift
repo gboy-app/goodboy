@@ -10,15 +10,16 @@ import FlowEngine
 func handleTools() async -> CallTool.Result {
     let (manifests, schemasByDriver) = await MainActor.run {
         let registry = ToolRegistry.shared
+        let visible = registry.manifests.filter { !mcpHiddenTools.contains($0.id) }
         let schemas: [String: [DataSchemaField]] = Dictionary(uniqueKeysWithValues:
-            registry.manifests.compactMap { m in
+            visible.compactMap { m in
                 guard let instance = registry.getTool(id: m.id) else { return nil }
                 let fields = instance.dataSchema(params: [:])
                 guard !fields.isEmpty else { return nil }
                 return (m.id, fields)
             }
         )
-        return (registry.manifests, schemas)
+        return (visible, schemas)
     }
     let items: [[String: Any]] = manifests.map { m in
         var entry: [String: Any] = [
@@ -53,7 +54,9 @@ func handleDevices() async -> CallTool.Result {
         DeviceService.shared.reload()
         let registry = ToolRegistry.shared
 
-        let infos: [DeviceInfo] = DeviceService.shared.devices.compactMap { device in
+        let infos: [DeviceInfo] = DeviceService.shared.devices
+            .filter { !mcpHiddenTools.contains($0.tool) }
+            .compactMap { device in
             guard var status = DiscoveryService.deviceStatus(for: device) else { return nil }
             if dr.changed.contains(device.id) {
                 status = DeviceRuntimeStatus(

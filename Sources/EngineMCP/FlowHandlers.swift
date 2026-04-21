@@ -12,6 +12,19 @@ func handleRun(_ arguments: [String: Value]?) async throws -> CallTool.Result {
         throw MCPError.invalidParams("Pass at least one of 'source' or 'dest'.")
     }
 
+    // Reject devices whose tool is filtered out of the MCP surface.
+    // These tools require a UI context MCP clients can't provide.
+    for (role, deviceId) in [("source", source), ("dest", dest)] {
+        guard let id = deviceId else { continue }
+        if let device = DeviceService.shared.get(id: id),
+           mcpHiddenTools.contains(device.tool) {
+            throw MCPError.invalidParams(
+                "Device '\(id)' is UI-only and cannot be run via MCP "
+                + "(\(role) role). Trigger this flow from the app."
+            )
+        }
+    }
+
     // D.5 — Mode 1 approval gate. Runs before any timeout so user
     // think-time isn't clock-limited. Stdio (.stdio invoker) skips.
     if MCPInvokerContext.current == .inAppMCP {
