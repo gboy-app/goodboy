@@ -33,7 +33,7 @@ struct GoodboyMCP {
         close(savedStdout)
 
         let server = Server(
-            name: "goodboy",
+            name: "goodboy-stdio",
             version: "1.0.0",
             capabilities: .init(tools: .init(listChanged: false))
         )
@@ -53,9 +53,10 @@ struct GoodboyMCP {
 
     @MainActor
     private static func startup() {
-        // Mode 2: free tools only. Pro-tier (iCloud) is not linked; calls
-        // to goodboy_run / goodboy_device_create for iCloud surface as
-        // "tool not registered" errors through the registry.
+        // STDIO MCP: only the engine's built-in tools. Any tool id not
+        // registered surfaces a "tool not registered" error through the
+        // registry (e.g. if a caller tries a device id from another host
+        // with a richer registration).
         ToolRegistry.shared.registerBundled(engineTools())
         registerChromeBridge()
         DeviceService.shared.bootstrapDefaults()

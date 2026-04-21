@@ -2,6 +2,8 @@
 
 `goodboy-mcp` is the stdio Model Context Protocol server for Flow Engine. It speaks MCP over stdio and exposes the tool set shipped in this repo: Chrome, KeePassXC, Bitwarden, 1Password, Proton Pass, and JSON Export.
 
+The server identifies itself to clients as `goodboy-stdio` in the MCP initialize handshake. The Goodboy macOS app ships a separate in-process variant that advertises as `goodboy-http`; the name distinction lets a client running both see which it's talking to.
+
 This binary is not a daemon. Your MCP client spawns it on demand, a tool call runs, the process exits.
 
 iCloud integration and Apple CXP (Credential Exchange Protocol) are not in this binary — a flow that names an iCloud device returns a typed "not available in this build" error.

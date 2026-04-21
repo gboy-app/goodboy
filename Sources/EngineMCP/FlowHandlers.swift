@@ -13,13 +13,15 @@ func handleRun(_ arguments: [String: Value]?) async throws -> CallTool.Result {
     }
 
     // Reject devices whose tool is filtered out of the MCP surface.
-    // These tools require a UI context MCP clients can't provide.
+    // Static entries (e.g. iCloud) are UI-only; dynamic entries come
+    // from the host via `MCPFeatureFlagsStore`.
+    let hidden = mcpEffectiveHiddenTools()
     for (role, deviceId) in [("source", source), ("dest", dest)] {
         guard let id = deviceId else { continue }
         if let device = DeviceService.shared.get(id: id),
-           mcpHiddenTools.contains(device.tool) {
+           hidden.contains(device.tool) {
             throw MCPError.invalidParams(
-                "Device '\(id)' is UI-only and cannot be run via MCP "
+                "Device '\(id)' is not available in this session "
                 + "(\(role) role). Trigger this flow from the app."
             )
         }

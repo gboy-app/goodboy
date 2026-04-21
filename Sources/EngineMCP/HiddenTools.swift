@@ -8,7 +8,14 @@ import Foundation
 // paid-feature marker; the engine doesn't know whether the caller registered
 // iCloud as a free-closed app-target tool or as part of some future bundle.
 //
-// If a second UI-only tool ever joins this set, the right refactor is a
-// `Tool.isMCPExposed` protocol flag rather than growing this list. For one
-// entry, a named constant with a comment beats the flag.
+// For host-driven dynamic hiding, set
+// `MCPFeatureFlagsStore.shared.hiddenToolIds`. Handlers union both via
+// `mcpEffectiveHiddenTools()`.
 public let mcpHiddenTools: Set<String> = ["icloud"]
+
+/// Static UI-only set unioned with whatever the host has set in
+/// `MCPFeatureFlagsStore`. Callers that filter MCP output by tool ID
+/// should use this, not `mcpHiddenTools` directly.
+public func mcpEffectiveHiddenTools() -> Set<String> {
+    mcpHiddenTools.union(MCPFeatureFlagsStore.shared.current.hiddenToolIds)
+}

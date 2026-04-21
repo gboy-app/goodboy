@@ -59,21 +59,31 @@ public final class InAppMCPServer: @unchecked Sendable {
         }
 
         let server = Server(
-            name: "goodboy",
+            name: "goodboy-http",
             version: "1.0.0",
             capabilities: .init(tools: .init(listChanged: false))
         )
         let transport = StatelessHTTPServerTransport()
 
+        // Engine tools ⊕ host-registered tools. STDIO never registers
+        // anything, so STDIO ships only the engine's built-ins.
+        let engineToolNames = Set(allTools.map { $0.name })
+
         await server.withMethodHandler(ListTools.self) { _ in
-            ListTools.Result(tools: allTools)
+            ListTools.Result(tools: allTools + MCPHostTools.shared.tools)
         }
         await server.withMethodHandler(CallTool.self) { params in
             MCPActivityLog.shared.append("\(params.name)")
             // D.5 — tag every in-app invocation so handlers (specifically
             // `goodboy_run`) can route through the Mode 1 approval gate.
             return try await MCPInvokerContext.$current.withValue(.inAppMCP) {
-                try await handleToolCall(params)
+                if engineToolNames.contains(params.name) {
+                    return try await handleToolCall(params)
+                }
+                if let result = try await MCPHostTools.shared.handle(params) {
+                    return result
+                }
+                throw MCPError.invalidParams("Unknown tool: \(params.name)")
             }
         }
 
