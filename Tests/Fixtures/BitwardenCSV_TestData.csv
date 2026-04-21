@@ -1,0 +1,12 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+Tech & Services,,login,1Password Test,Test note for 1password,,0,https://my.1password.com/,testuser@example.com,Fak3Pass!word1,
+Shopping,,login,TestShop.com,,Unknown field: -1,0,https://www.testshop.com/login,testuser@example.com,Fak3Pass!word2,
+Transport & Food,,login,TestAir.com,,Unknown field: -1,0,https://secure.testair.com/login,testuser@example.com,Fak3Pass!word3,otpauth://totp/TestAir:testuser@example.com?secret=FAKESECRET123456&issuer=TestAir
+Finance,,login,TestBank.com,Use this login for online banking.,,0,https://secure.testbank.com/,testuser@example.com,Fak3Pass!word4,
+,,login,NoFolder Entry,,,0,https://nofolder.example.com/,testuser@example.com,Fak3Pass!word5,
+Shopping,,login,DuplicateShop.com,,,0,https://www.dupshop.com/,testuser@example.com,Fak3Pass!word6,
+Shopping,,login,DuplicateShop.com,,,0,https://www.dupshop.com/,testuser@example.com,Fak3Pass!word6,
+,,login,UsernameOnly.com,,,0,https://usernameonly.example.com/,testuser@example.com,,
+,,login,NoURL Entry,,,0,,testuser@example.com,Fak3Pass!word7,
+,,login,EmptyEntry,,,0,,,Fak3Pass!word8,
+Tech & Services,,login,MultiOTP.com,"Has both TOTP and notes. Extra line in notes.",Unknown field: -1,0,https://multiotp.example.com/,testuser@example.com,Fak3Pass!word9,otpauth://totp/Multi:testuser@example.com?secret=ANOTHERFAKE789&issuer=Multi

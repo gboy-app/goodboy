@@ -1,0 +1,182 @@
+{
+  "encrypted": false,
+  "folders": [
+    {"id": "f1111111-aaaa-bbbb-cccc-111111111111", "name": "Finance"},
+    {"id": "f2222222-aaaa-bbbb-cccc-222222222222", "name": "Shopping"},
+    {"id": "f3333333-aaaa-bbbb-cccc-333333333333", "name": "Tech & Services"}
+  ],
+  "items": [
+    {
+      "_comment": "Standard password with folder and notes",
+      "id": "a1111111-1111-1111-1111-111111111111",
+      "organizationId": null,
+      "folderId": "f3333333-aaaa-bbbb-cccc-333333333333",
+      "type": 1,
+      "reprompt": 0,
+      "name": "1Password Test",
+      "notes": "Test note for 1password.",
+      "favorite": false,
+      "login": {
+        "uris": [{"match": null, "uri": "https://my.1password.com/"}],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word1",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Password with TOTP",
+      "id": "a2222222-2222-2222-2222-222222222222",
+      "organizationId": null,
+      "folderId": "f2222222-aaaa-bbbb-cccc-222222222222",
+      "type": 1,
+      "reprompt": 0,
+      "name": "TestShop OTP",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{"match": null, "uri": "https://www.testshop.com/"}],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word2",
+        "totp": "otpauth://totp/TestShop:testuser@example.com?secret=FAKESECRET123456&issuer=TestShop"
+      }
+    },
+    {
+      "_comment": "Username-only (no password)",
+      "id": "a3333333-3333-3333-3333-333333333333",
+      "organizationId": null,
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "UsernameOnly",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{"match": null, "uri": "https://usernameonly.example.com/"}],
+        "username": "testuser@example.com",
+        "password": null,
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Duplicate pair (1 of 2)",
+      "id": "a4444444-4444-4444-4444-444444444444",
+      "organizationId": null,
+      "folderId": "f2222222-aaaa-bbbb-cccc-222222222222",
+      "type": 1,
+      "reprompt": 0,
+      "name": "DuplicateShop",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{"match": null, "uri": "https://dupshop.example.com/"}],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word3",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Duplicate pair (2 of 2)",
+      "id": "a5555555-5555-5555-5555-555555555555",
+      "organizationId": null,
+      "folderId": "f2222222-aaaa-bbbb-cccc-222222222222",
+      "type": 1,
+      "reprompt": 0,
+      "name": "DuplicateShop",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{"match": null, "uri": "https://dupshop.example.com/"}],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word3",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "No URI",
+      "id": "a6666666-6666-6666-6666-666666666666",
+      "organizationId": null,
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "NoURL Entry",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word4",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Secure note (type=2) — should be SKIPPED by parser",
+      "id": "a7777777-7777-7777-7777-777777777777",
+      "organizationId": null,
+      "folderId": null,
+      "type": 2,
+      "reprompt": 0,
+      "name": "My Secure Note",
+      "notes": "This is a secure note, not a login. Should be skipped.",
+      "favorite": false,
+      "secureNote": {"type": 0}
+    },
+    {
+      "_comment": "Empty everything except password",
+      "id": "a8888888-8888-8888-8888-888888888888",
+      "organizationId": null,
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "EmptyEntry",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [],
+        "username": "",
+        "password": "Fak3Pass!word5",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Multiple URIs",
+      "id": "a9999999-9999-9999-9999-999999999999",
+      "organizationId": null,
+      "folderId": "f1111111-aaaa-bbbb-cccc-111111111111",
+      "type": 1,
+      "reprompt": 0,
+      "name": "MultiURI Bank",
+      "notes": "Bank with multiple login URLs",
+      "favorite": true,
+      "login": {
+        "uris": [
+          {"match": null, "uri": "https://banking.example.com/"},
+          {"match": null, "uri": "https://mobile.banking.example.com/"}
+        ],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word6",
+        "totp": null
+      }
+    },
+    {
+      "_comment": "Custom fields",
+      "id": "b1111111-1111-1111-1111-111111111111",
+      "organizationId": null,
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "CustomFields Entry",
+      "notes": null,
+      "favorite": false,
+      "fields": [
+        {"name": "Security Question", "value": "FakeAnswer", "type": 0},
+        {"name": "PIN", "value": "0000", "type": 1}
+      ],
+      "login": {
+        "uris": [{"match": null, "uri": "https://customfields.example.com/"}],
+        "username": "testuser@example.com",
+        "password": "Fak3Pass!word7",
+        "totp": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+Title,URL,Username,Password,Notes,OTPAuth
+Service-TestA,https://www.servicetesta.com,user_Abc1,FakeApple!Pass1,Notes for Service-TestA,
+Service-TestB,https://www.servicetestb.com,user_Def2,FakeApple!Pass2,,
+Service-TestC,,user_Ghi3,FakeApple!Pass3,Notes for Service-TestC,
+Service-TestD,https://www.servicetestd.com,,FakeApple!Pass4,,
+Service-TestE,https://www.serviceteste.com,user_Jkl5,FakeApple!Pass5,Notes for Service-TestE,otpauth://totp/TestE:user_Jkl5?secret=FAKEAPPLESECRET&issuer=TestE
+Service-TestF,https://www.servicetestf.com,user_Mno6,FakeApple!Pass6,,
+Recovery Key,MacBook Test,,FAKE-XXXX-YYYY-ZZZZ-AAAA-BBBB,,
+Recovery Key,MacBook Test,,FAKE-1111-2222-3333-4444-5555,,
+Service-DupA,https://www.servicedupa.com,user_Pqr7,FakeApple!Pass7,,
+Service-DupA,https://www.servicedupa.com,user_Pqr7,FakeApple!Pass7,,
+Service-EmptyPwd,https://www.serviceempty.com,user_Stu8,,,

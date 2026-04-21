@@ -1,0 +1,7 @@
+name,url,username,password,note
+testsite.com,https://testsite.com/,testuser@example.com,Fak3Chrome!1,
+testshop.co.uk,https://testshop.co.uk/,testuser@example.com,Fak3Chrome!2,
+android-app.com,android://fakeAppSignature==@com.test.app/,testuser@example.com,Fak3Chrome!3,
+empty-password.co.uk,https://empty-password.co.uk/,testuser@example.com,,
+goodboy.app,https://goodboy.app/,testuser@example.com,Fak3Chrome!4,
+local-router,https://192.168.0.1/,admin,Fak3Router!5,

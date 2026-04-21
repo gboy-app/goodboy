@@ -1,0 +1,285 @@
+{
+  "userId": "fakeUserId_AAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "version": "1.33.3",
+  "vaults": {
+    "vault-main-AAAA": {
+      "name": "Personal",
+      "description": "Main vault",
+      "items": [
+        {
+          "_comment": "Standard login",
+          "itemId": "item-001",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "TestService A", "note": "", "itemUuid": "aaa00001"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass1",
+              "urls": ["https://testservicea.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Login with TOTP",
+          "itemId": "item-002",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "TestService B (OTP)", "note": "", "itemUuid": "aaa00002"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "testuser@example.com",
+              "password": "FakeProton!Pass2",
+              "urls": ["https://testserviceb.example.com"],
+              "totpUri": "otpauth://totp/TestB:testuser@example.com?secret=FAKEPROTONSECRET&issuer=TestB",
+              "passkeys": [],
+              "itemUsername": ""
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Username fallback: itemUsername empty, falls back to itemEmail",
+          "itemId": "item-003",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "TestService C (email fallback)", "note": "Has notes attached", "itemUuid": "aaa00003"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "fallback@example.com",
+              "password": "FakeProton!Pass3",
+              "urls": ["https://testservicec.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": ""
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "No URL",
+          "itemId": "item-004",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "TestService D (no URL)", "note": "", "itemUuid": "aaa00004"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass4",
+              "urls": [],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Trashed item (state=2) — should be SKIPPED",
+          "itemId": "item-005",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "Trashed Entry", "note": "", "itemUuid": "aaa00005"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "ShouldNotAppear",
+              "urls": ["https://trashed.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "trashed@example.com"
+            }
+          },
+          "state": 2,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Note type — should be SKIPPED",
+          "itemId": "item-006",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "My Secure Note", "note": "This is a secure note", "itemUuid": "aaa00006"},
+            "extraFields": [],
+            "type": "note",
+            "content": {
+              "itemEmail": "",
+              "password": "",
+              "urls": [],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": ""
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Empty password (username-only)",
+          "itemId": "item-007",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "UsernameOnly Service", "note": "", "itemUuid": "aaa00007"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "",
+              "urls": ["https://usernameonly.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Alias email entry",
+          "itemId": "item-008",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "Alias Service", "note": "", "itemUuid": "aaa00008"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass5",
+              "urls": ["https://alias.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": "alias.test@protonmail.com",
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Duplicate pair (1 of 2)",
+          "itemId": "item-009",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "DupService", "note": "", "itemUuid": "aaa00009"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass6",
+              "urls": ["https://dupservice.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        },
+        {
+          "_comment": "Duplicate pair (2 of 2)",
+          "itemId": "item-010",
+          "shareId": "vault-main-AAAA",
+          "data": {
+            "metadata": {"name": "DupService", "note": "", "itemUuid": "aaa00010"},
+            "extraFields": [],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass6",
+              "urls": ["https://dupservice.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        }
+      ]
+    },
+    "vault-secondary-BBBB": {
+      "name": "Work",
+      "description": "Work vault",
+      "items": [
+        {
+          "_comment": "Login with extra fields",
+          "itemId": "item-011",
+          "shareId": "vault-secondary-BBBB",
+          "data": {
+            "metadata": {"name": "ExtraFields Service", "note": "", "itemUuid": "bbb00001"},
+            "extraFields": [
+              {"fieldName": "Security Question", "type": "text", "data": {"content": "FakeAnswer"}},
+              {"fieldName": "Recovery Code", "type": "hidden", "data": {"content": "FAKE-RECOVERY-CODE"}}
+            ],
+            "type": "login",
+            "content": {
+              "itemEmail": "",
+              "password": "FakeProton!Pass7",
+              "urls": ["https://extrafields.example.com"],
+              "totpUri": "",
+              "passkeys": [],
+              "itemUsername": "testuser@example.com"
+            }
+          },
+          "state": 1,
+          "aliasEmail": null,
+          "contentFormatVersion": 3,
+          "createTime": 1709490935,
+          "modifyTime": 1712170926,
+          "pinned": false
+        }
+      ]
+    }
+  }
+}
