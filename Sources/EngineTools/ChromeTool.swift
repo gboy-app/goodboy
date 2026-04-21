@@ -929,6 +929,62 @@ public final class ChromeTool: Tool {
         return newID
     }
 
+    // MARK: - Sync Verification
+
+    /// Check how many of the given login row IDs have synced to Google.
+    /// Copies the DB to a temp file first — Chrome holds a WAL lock while running.
+    private func verifySynced(dbPath: String, aesKey: Data,
+                              ids: [Int64]) throws -> Int {
+        let fm = FileManager.default
+        let tempPath = fm.temporaryDirectory
+            .appendingPathComponent("goodboy_verify_\(UUID().uuidString).db")
+            .path
+        try fm.copyItem(atPath: dbPath, toPath: tempPath)
+        defer { try? fm.removeItem(atPath: tempPath) }
+
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(tempPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK
+        else {
+            throw ChromeToolError.databaseError(
+                "Failed to open DB for verification"
+            )
+        }
+        defer { sqlite3_close(db) }
+
+        var synced = 0
+        for id in ids {
+            var stmt: OpaquePointer?
+            let sql = "SELECT metadata FROM sync_entities_metadata WHERE storage_key=?"
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK
+            else { continue }
+            defer { sqlite3_finalize(stmt) }
+
+            sqlite3_bind_int64(stmt, 1, id)
+
+            guard sqlite3_step(stmt) == SQLITE_ROW else { continue }
+
+            let blobPtr = sqlite3_column_blob(stmt, 0)
+            let blobLen = sqlite3_column_bytes(stmt, 0)
+            guard let ptr = blobPtr, blobLen > 0 else { continue }
+
+            let encrypted = Data(bytes: ptr, count: Int(blobLen))
+            guard let decrypted = try? v10Decrypt(encrypted, key: aesKey)
+            else { continue }
+
+            let fields = decodeMetadata(decrypted)
+            let hasServerID = fields[2] != nil
+            let seq = (fields[4] as? Int64) ?? 0
+            let acked = (fields[5] as? Int64) ?? 0
+            let serverVer = (fields[6] as? Int64) ?? -1
+
+            if hasServerID && seq == acked && serverVer > 0 {
+                synced += 1
+            }
+        }
+
+        Self.log.info("Verified: \(synced)/\(ids.count) synced")
+        return synced
+    }
 
     // MARK: - URL Helpers
 
@@ -1193,6 +1249,64 @@ public final class ChromeTool: Tool {
             shift += 7
         }
         return (result, pos)
+    }
+
+    // MARK: - Public Write Surface
+
+    /// Write SecuredBox credentials to a Chrome login database at `dbPath`.
+    ///
+    /// Stateless: the caller owns the database path (real profile DB for a
+    /// direct write, or a cloned DB for out-of-band sync). Returns the row
+    /// IDs that were touched so the caller can pass them to
+    /// `verifyChromeSync` after Chrome has had a chance to sync.
+    public static func performChromeWrite(
+        dbPath: String, aesKey: Data, box: SecuredBox
+    ) throws -> ChromeWriteResult {
+        let tool = ChromeTool()
+        let result = try tool.upsertAll(dbPath: dbPath, aesKey: aesKey, securedBox: box)
+        return ChromeWriteResult(
+            ids: result.ids,
+            inserted: result.inserted,
+            updated: result.updated,
+            skippedDuplicates: result.skippedDuplicates,
+            warnings: result.warnings
+        )
+    }
+
+    /// Count how many of the given login row IDs have synced to Google.
+    ///
+    /// Decrypts each row's `sync_entities_metadata` protobuf and counts rows
+    /// that have a server ID assigned, a matching sequence/ack, and a
+    /// positive server version. Opens the DB read-only against a temp copy,
+    /// so it's safe to call while Chrome holds a WAL lock on the source.
+    public static func verifyChromeSync(
+        dbPath: String, aesKey: Data, ids: [Int64]
+    ) throws -> Int {
+        let tool = ChromeTool()
+        return try tool.verifySynced(dbPath: dbPath, aesKey: aesKey, ids: ids)
+    }
+}
+
+// MARK: - Public Write Result
+
+/// Outcome of a `ChromeTool.performChromeWrite` call.
+public struct ChromeWriteResult: Sendable {
+    public let ids: [Int64]
+    public let inserted: Int
+    public let updated: Int
+    public let skippedDuplicates: Int
+    public let warnings: [String]
+
+    public var total: Int { inserted + updated + skippedDuplicates }
+    public var writtenCount: Int { inserted + updated }
+
+    /// e.g. "3 new, 1 updated" or "2 new, 1 already existed"
+    public var breakdown: String {
+        var parts: [String] = []
+        if inserted > 0 { parts.append("\(inserted) new") }
+        if updated > 0 { parts.append("\(updated) updated") }
+        if skippedDuplicates > 0 { parts.append("\(skippedDuplicates) already existed") }
+        return parts.joined(separator: ", ")
     }
 }
 
