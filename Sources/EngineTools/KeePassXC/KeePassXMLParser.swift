@@ -137,6 +137,7 @@ public final class KeePassXMLParser: NSObject, XMLParserDelegate {
     private var recycleBinGroupUUIDs: Set<String> = []
     private var currentGroupUUID = ""
     private var inDeletedObjects = false
+    private var inHistory = false
 
     // Standard KeePass entry fields
     private static let standardKeys: Set<String> = ["Title", "URL", "UserName", "Password", "Notes"]
@@ -160,6 +161,7 @@ public final class KeePassXMLParser: NSObject, XMLParserDelegate {
         recycleBinUUID = ""
         recycleBinGroupUUIDs = []
         inDeletedObjects = false
+        inHistory = false
 
         let parser = XMLParser(data: data)
         parser.delegate = self
@@ -180,6 +182,15 @@ public final class KeePassXMLParser: NSObject, XMLParserDelegate {
 
     public func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String] = [:]) {
         currentElement = elementName
+
+        // <History> wraps past versions of the enclosing Entry. Freeze all parser
+        // state until </History> — history entries are not emitted, and their
+        // <String> children must not overwrite the live entry's fields.
+        if elementName == "History" {
+            inHistory = true
+            return
+        }
+        if inHistory { return }
 
         switch elementName {
         case "Group":
@@ -220,6 +231,7 @@ public final class KeePassXMLParser: NSObject, XMLParserDelegate {
 
     public func parser(_ parser: XMLParser, foundCharacters string: String) {
         if inDeletedObjects { return }
+        if inHistory { return }
 
         if inAutoType { return }
 
@@ -255,6 +267,13 @@ public final class KeePassXMLParser: NSObject, XMLParserDelegate {
             return
         }
         if inDeletedObjects { return }
+
+        if elementName == "History" {
+            inHistory = false
+            currentElement = ""
+            return
+        }
+        if inHistory { return }
 
         switch elementName {
         case "Group":

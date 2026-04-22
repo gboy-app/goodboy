@@ -557,6 +557,103 @@ struct KeePassXMLParserTests {
         #expect(entries[0].title == "Keep")
     }
 
+    // MARK: - History
+
+    @Test("Ignores past versions in <History>, emits only the live entry")
+    func testHistoryBlockIgnored() throws {
+        let xml = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <KeePassFile>
+            <Root>
+                <Group>
+                    <Name>Root</Name>
+                    <Entry>
+                        <UUID>live</UUID>
+                        <String><Key>Title</Key><Value>Live Title</Value></String>
+                        <String><Key>URL</Key><Value>https://live.com</Value></String>
+                        <String><Key>UserName</Key><Value>liveuser</Value></String>
+                        <String><Key>Password</Key><Value>livepass</Value></String>
+                        <History>
+                            <Entry>
+                                <UUID>old1</UUID>
+                                <String><Key>Title</Key><Value>Old Title 1</Value></String>
+                                <String><Key>URL</Key><Value>https://old1.com</Value></String>
+                                <String><Key>UserName</Key><Value>olduser1</Value></String>
+                                <String><Key>Password</Key><Value>oldpass1</Value></String>
+                            </Entry>
+                            <Entry>
+                                <UUID>old2</UUID>
+                                <String><Key>Title</Key><Value>Old Title 2</Value></String>
+                                <String><Key>URL</Key><Value>https://old2.com</Value></String>
+                                <String><Key>UserName</Key><Value>olduser2</Value></String>
+                                <String><Key>Password</Key><Value>oldpass2</Value></String>
+                            </Entry>
+                        </History>
+                    </Entry>
+                </Group>
+            </Root>
+        </KeePassFile>
+        """
+
+        let parser = KeePassXMLParser()
+        let entries = try parser.parse(xml: xml)
+
+        #expect(entries.count == 1)
+        let entry = entries[0]
+        #expect(entry.uuid == "live")
+        #expect(entry.title == "Live Title")
+        #expect(entry.url == "https://live.com")
+        #expect(entry.username == "liveuser")
+        #expect(entry.password == "livepass")
+    }
+
+    @Test("Multiple live entries each with history are all emitted once")
+    func testMultipleEntriesWithHistory() throws {
+        let xml = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <KeePassFile>
+            <Root>
+                <Group>
+                    <Name>Root</Name>
+                    <Entry>
+                        <UUID>a</UUID>
+                        <String><Key>Title</Key><Value>A</Value></String>
+                        <String><Key>URL</Key><Value>https://a.com</Value></String>
+                        <String><Key>UserName</Key><Value>ua</Value></String>
+                        <String><Key>Password</Key><Value>pa</Value></String>
+                        <History>
+                            <Entry><UUID>a1</UUID><String><Key>Password</Key><Value>old1</Value></String></Entry>
+                            <Entry><UUID>a2</UUID><String><Key>Password</Key><Value>old2</Value></String></Entry>
+                            <Entry><UUID>a3</UUID><String><Key>Password</Key><Value>old3</Value></String></Entry>
+                        </History>
+                    </Entry>
+                    <Entry>
+                        <UUID>b</UUID>
+                        <String><Key>Title</Key><Value>B</Value></String>
+                        <String><Key>URL</Key><Value>https://b.com</Value></String>
+                        <String><Key>UserName</Key><Value>ub</Value></String>
+                        <String><Key>Password</Key><Value>pb</Value></String>
+                        <History>
+                            <Entry><UUID>b1</UUID><String><Key>Password</Key><Value>old1</Value></String></Entry>
+                            <Entry><UUID>b2</UUID><String><Key>Password</Key><Value>old2</Value></String></Entry>
+                            <Entry><UUID>b3</UUID><String><Key>Password</Key><Value>old3</Value></String></Entry>
+                        </History>
+                    </Entry>
+                </Group>
+            </Root>
+        </KeePassFile>
+        """
+
+        let parser = KeePassXMLParser()
+        let entries = try parser.parse(xml: xml)
+
+        #expect(entries.count == 2)
+        #expect(entries[0].title == "A")
+        #expect(entries[0].password == "pa")
+        #expect(entries[1].title == "B")
+        #expect(entries[1].password == "pb")
+    }
+
     // MARK: - Parser Reuse
 
     @Test("Parser can be reused for multiple parses")
