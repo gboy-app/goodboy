@@ -561,12 +561,19 @@ public final class ChromeTool: Tool {
 
     private struct UpsertResult {
         var ids: [Int64] = []
+        private var seenIDs: Set<Int64> = []
         var inserted = 0
         var updated = 0
         var skippedDuplicates = 0
         var warnings: [String] = []
         var total: Int { inserted + updated + skippedDuplicates }
-        var writtenCount: Int { inserted + updated }
+        var writtenCount: Int { ids.count }
+
+        mutating func recordID(_ id: Int64) {
+            if seenIDs.insert(id).inserted {
+                ids.append(id)
+            }
+        }
 
         /// e.g. "3 new, 1 updated" or "2 new, 1 already existed"
         var breakdown: String {
@@ -581,15 +588,20 @@ public final class ChromeTool: Tool {
     private func upsertAll(dbPath: String, aesKey: Data,
                            securedBox: SecuredBox) throws -> UpsertResult {
         var result = UpsertResult()
+        var skippedNoPassword = 0
+        var skippedInvalidURL = 0
 
         for item in securedBox.items {
             guard let password = item.password, !password.isEmpty else {
-                result.warnings.append("Skipped \(item.url): no password")
+                skippedNoPassword += 1
                 continue
             }
 
-            let url = normalizeURL(item.url)
-            let realm = originRealm(url)
+            guard let realm = normalizedChromeOrigin(item.url) else {
+                skippedInvalidURL += 1
+                continue
+            }
+            let url = realm
 
             if let existingID = try findExistingLoginID(
                 dbPath: dbPath, url: url,
@@ -600,7 +612,7 @@ public final class ChromeTool: Tool {
                     url: url, username: item.username,
                     password: password, realm: realm
                 )
-                result.ids.append(existingID)
+                result.recordID(existingID)
                 result.updated += 1
                 Self.log.info("Updated: \(url) (id=\(existingID))")
             } else {
@@ -615,11 +627,20 @@ public final class ChromeTool: Tool {
                     result.skippedDuplicates += 1
                     Self.log.info("Already exists (URL mismatch): \(url)")
                 } else {
-                    result.ids.append(newID)
+                    result.recordID(newID)
                     result.inserted += 1
                     Self.log.info("Inserted: \(url) (id=\(newID))")
                 }
             }
+        }
+
+        if skippedNoPassword > 0 {
+            result.warnings.append("Skipped \(skippedNoPassword) entries with no password")
+        }
+        if skippedInvalidURL > 0 {
+            result.warnings.append(
+                "Skipped \(skippedInvalidURL) entries without an importable http(s) URL"
+            )
         }
 
         return result
@@ -988,30 +1009,36 @@ public final class ChromeTool: Tool {
 
     // MARK: - URL Helpers
 
-    private func normalizeURL(_ url: String) -> String {
-        var u = url
-        if !u.hasPrefix("http://") && !u.hasPrefix("https://") {
-            u = "https://" + u
-        }
-        if !u.hasSuffix("/") {
-            u += "/"
-        }
-        return u
-    }
+    private func normalizedChromeOrigin(_ url: String) -> String? {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
 
-    /// Chrome's HTML-form `signon_realm` must be origin-only
-    /// (`scheme://host[:port]/`). `origin_url` and `action_url` carry the
-    /// full page URL; `signon_realm` is the scope key the password
-    /// manager filters by. Surfaced 2026-05-04: the writer was setting
-    /// `signon_realm = origin_url` (path-bleed) so saved creds were
-    /// invisible to the autofill picker on any other page sharing the
-    /// host. Strips path/query/fragment, normalizes path to `/`.
-    private func originRealm(_ url: String) -> String {
-        guard var c = URLComponents(string: url) else { return url }
-        c.path = "/"
-        c.query = nil
-        c.fragment = nil
-        return c.string ?? url
+        var candidate = trimmed
+        let hasScheme = candidate.range(
+            of: #"^[A-Za-z][A-Za-z0-9+.-]*://"#,
+            options: .regularExpression
+        ).map { $0.lowerBound == candidate.startIndex } ?? false
+        if !hasScheme {
+            candidate = "https://" + candidate
+        }
+
+        guard var components = URLComponents(string: candidate),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = components.host?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !host.isEmpty
+        else {
+            return nil
+        }
+
+        components.scheme = scheme
+        components.user = nil
+        components.password = nil
+        components.host = host.lowercased()
+        components.path = "/"
+        components.query = nil
+        components.fragment = nil
+        return components.string
     }
 
     // MARK: - Chrome Crypto (Write Path)
