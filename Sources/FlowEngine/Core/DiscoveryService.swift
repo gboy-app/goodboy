@@ -178,23 +178,24 @@ public enum DiscoveryService {
                 let deviceName = rawConfig["_name"] ?? manifest.name
                 let config = rawConfig.filter { !$0.key.hasPrefix("_") }
 
+                // Slug allocation: preferred `_slug` if free → unused slug-pool entry → `default-N`.
+                // Falling through on collision (instead of skipping) is what catches the case where
+                // a newly-detected resource sorts before an already-bound one and would otherwise
+                // collide on the index-derived slug — e.g. a second KeePassXC db that lands at
+                // index 0 and tries to claim "default" from the existing device.
+                let existingSlugs = Set(DeviceService.shared.devices(forTool: manifest.id).map(\.slug))
                 let slug: String
-                if let s = rawConfig["_slug"], !s.isEmpty {
-                    slug = s
+                if let preferred = rawConfig["_slug"], !preferred.isEmpty, !existingSlugs.contains(preferred) {
+                    slug = preferred
+                } else if let poolSlug = manifest.slugPool.map(\.slug).first(where: { !existingSlugs.contains($0) }) {
+                    slug = poolSlug
                 } else {
-                    let existingSlugs = DeviceService.shared.devices(forTool: manifest.id).map(\.slug)
-                    if !existingSlugs.contains("default") {
-                        slug = "default"
-                    } else {
-                        var n = 2
-                        while existingSlugs.contains("default-\(n)") { n += 1 }
-                        slug = "default-\(n)"
-                    }
+                    var n = 2
+                    while existingSlugs.contains("default-\(n)") { n += 1 }
+                    slug = "default-\(n)"
                 }
 
                 let deviceId = "\(manifest.id)-\(slug)"
-                let currentIds = DeviceService.shared.devices(forTool: manifest.id).map(\.id)
-                guard !currentIds.contains(deviceId) else { continue }
 
                 let fingerprint = fileFingerprint(instance.watchedFiles(params: config))
                 let count = instance.credentialCount(params: config)

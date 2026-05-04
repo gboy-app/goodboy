@@ -20,9 +20,24 @@ public final class JSONExportTool: Tool {
     public static let supportedTypes: [BoxItemType] = [.password, .passkey, .otp]
 
     public static var paramSchema: [ParamSpec] {
-        [ParamSpec(key: "path", label: "Output File", type: .path, required: true,
-                   description: "Path to output Bitwarden JSON file",
-                   defaultValue: "~/Downloads/goodboy-export.json")]
+        [
+            ParamSpec(key: "path", label: "Output File", type: .path, required: true,
+                      description: "Path to output Bitwarden JSON file",
+                      defaultValue: "~/Downloads/goodboy-export.json"),
+            ParamSpec(key: "redact", label: "Redact Secrets", type: .choice, required: false,
+                      description: "Replace passwords / TOTP / passkey keys with sentinels of form `[redacted: N chars, KIND]`. Output is no longer importable but is safe to share.",
+                      defaultValue: "false",
+                      choices: ["false", "true"],
+                      choiceLabels: ["Off", "On"]),
+        ]
+    }
+
+    public static var slugPool: [SlugEntry] {
+        [
+            SlugEntry(slug: "default", name: "Bitwarden JSON Export", config: [:]),
+            SlugEntry(slug: "redacted", name: "Bitwarden JSON Export (Redacted)",
+                      config: ["redact": "true"]),
+        ]
     }
 
     private static let log = Logger(subsystem: "app.gboy.goodboy", category: "JSONExportTool")
@@ -60,7 +75,14 @@ public final class JSONExportTool: Tool {
     }
 
     public func suggestDeviceConfigs() -> [[String: String]] {
-        [["path": "~/Downloads/goodboy-export.json", "_slug": "default", "_canRead": "false", "_canWrite": "true"]]
+        [
+            ["path": "~/Downloads/goodboy-export.json",
+             "redact": "false",
+             "_slug": "default", "_canRead": "false", "_canWrite": "true"],
+            ["path": "~/Downloads/goodboy-export.redacted.json",
+             "redact": "true",
+             "_slug": "redacted", "_canRead": "false", "_canWrite": "true"],
+        ]
     }
 
     // MARK: - Check + Connect
@@ -101,6 +123,7 @@ public final class JSONExportTool: Tool {
             return .failure(policyError.message)
         }
         let expandedPath = JSONExportPathPolicy.resolve(path)
+        let redact = (params["redact"] ?? "false") == "true"
 
         let credentials = securedBox.items
 
@@ -134,12 +157,12 @@ public final class JSONExportTool: Tool {
             }()
 
             // Build fido2Credentials from passkey extras (if present)
-            let fido2: [ExportBWFido2Credential]? = buildFido2(from: cred)
+            let fido2: [ExportBWFido2Credential]? = buildFido2(from: cred, redact: redact)
 
             let login = ExportBWLogin(
                 username: cred.username.isEmpty ? nil : cred.username,
-                password: cred.password,
-                totp: cred.extras["otpAuth"],
+                password: redact ? Self.scrub(cred.password) : cred.password,
+                totp: redact ? Self.scrub(cred.extras["otpAuth"]) : cred.extras["otpAuth"],
                 uris: cred.url.isEmpty ? [] : [ExportBWURI(uri: cred.url)],
                 fido2Credentials: fido2
             )
@@ -172,7 +195,7 @@ public final class JSONExportTool: Tool {
 
     // MARK: - Passkey Mapping
 
-    private func buildFido2(from cred: BoxItem) -> [ExportBWFido2Credential]? {
+    private func buildFido2(from cred: BoxItem, redact: Bool) -> [ExportBWFido2Credential]? {
         // Check both naming conventions: PasskeyExtrasKey (KeePass path) and dataSchema keys (iCloud path)
         guard let rpId = cred.extras[PasskeyExtrasKey.rpId] ?? cred.extras["passkey_rpId"],
               !rpId.isEmpty else { return nil }
@@ -204,7 +227,7 @@ public final class JSONExportTool: Tool {
             keyType: "public-key",
             keyAlgorithm: "ECDSA",
             keyCurve: "P-256",
-            keyValue: keyValue,
+            keyValue: redact ? (Self.scrub(keyValue) ?? "") : keyValue,
             rpId: rpId,
             rpName: rpId,
             userHandle: userHandle,
@@ -214,6 +237,28 @@ public final class JSONExportTool: Tool {
             discoverable: "true",
             creationDate: iso8601.string(from: Date())
         )]
+    }
+
+    // MARK: - Redaction
+
+    /// Replace a secret with `[redacted: N chars, KIND]` where KIND is
+    /// numeric / alpha / alphanumeric / mixed. Empty/nil pass through.
+    static func scrub(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else { return value }
+        return "[redacted: \(value.count) chars, \(redactionKind(value))]"
+    }
+
+    private static func redactionKind(_ s: String) -> String {
+        var hasDigit = false, hasAlpha = false, hasOther = false
+        for c in s {
+            if c.isLetter { hasAlpha = true }
+            else if c.isNumber { hasDigit = true }
+            else { hasOther = true }
+        }
+        if hasOther { return "mixed" }
+        if hasDigit && hasAlpha { return "alphanumeric" }
+        if hasDigit { return "numeric" }
+        return "alpha"
     }
 
     /// Reverse of BitwardenJSONParser.pkcs8Base64ToPEM — strip PEM headers to get raw base64.

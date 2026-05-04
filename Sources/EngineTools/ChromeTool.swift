@@ -589,7 +589,7 @@ public final class ChromeTool: Tool {
             }
 
             let url = normalizeURL(item.url)
-            let realm = url
+            let realm = originRealm(url)
 
             if let existingID = try findExistingLoginID(
                 dbPath: dbPath, url: url,
@@ -997,6 +997,21 @@ public final class ChromeTool: Tool {
             u += "/"
         }
         return u
+    }
+
+    /// Chrome's HTML-form `signon_realm` must be origin-only
+    /// (`scheme://host[:port]/`). `origin_url` and `action_url` carry the
+    /// full page URL; `signon_realm` is the scope key the password
+    /// manager filters by. Surfaced 2026-05-04: the writer was setting
+    /// `signon_realm = origin_url` (path-bleed) so saved creds were
+    /// invisible to the autofill picker on any other page sharing the
+    /// host. Strips path/query/fragment, normalizes path to `/`.
+    private func originRealm(_ url: String) -> String {
+        guard var c = URLComponents(string: url) else { return url }
+        c.path = "/"
+        c.query = nil
+        c.fragment = nil
+        return c.string ?? url
     }
 
     // MARK: - Chrome Crypto (Write Path)
