@@ -165,4 +165,45 @@ struct DiscoveryServiceMatchTests {
         )
         #expect(result == [nil])
     }
+
+    @Test("Device with extra config keys does NOT claim a sparser suggestion")
+    func extraDeviceKeysDisqualify() {
+        // Real-world bug v0.3.1.0: an Edge-config device
+        // {profile=Default, chromeDir=…/Edge} hijacked the Chrome Default
+        // suggestion {profile=Default} because the matcher only verified
+        // identity ⊆ device, not identity == device. Result: chrome-default
+        // (config={profile=Default}) was marked stale and deleted; the Edge
+        // device's row took its place in the sidebar with name="Chrome",
+        // subtitle="Default", credentialCount=0. Strict equality on the
+        // identity/normalized-config compare prevents the hijack.
+        let edgeDir = "/Users/x/Library/Application Support/Microsoft Edge"
+        let suggestions: [[String: String]] = [
+            ["profile": "Default", "_slug": "default", "_name": "Chrome"],
+            ["profile": "Default", "chromeDir": edgeDir, "_slug": "edge", "_name": "Edge"],
+        ]
+        let result = DiscoveryService.matchSuggestions(
+            deviceSlugs: ["default-11"],
+            deviceConfigs: [["profile": "Default", "chromeDir": edgeDir]],
+            suggestions: suggestions
+        )
+        // Must claim Edge (idx 1), not Chrome Default (idx 0).
+        #expect(result == [1])
+    }
+
+    @Test("Sparse-config device does NOT match a richer suggestion")
+    func sparseDeviceDoesNotMatchRicherSuggestion() {
+        // The opposite hijack: a {profile=Default} device matching an
+        // Edge-flavored {profile=Default, chromeDir=Edge} suggestion.
+        // Strict equality disqualifies; the {profile=Default} device
+        // should claim only the Chrome Default suggestion.
+        let result = DiscoveryService.matchSuggestions(
+            deviceSlugs: ["default"],
+            deviceConfigs: [["profile": "Default"]],
+            suggestions: [
+                ["profile": "Default", "chromeDir": "/Edge", "_slug": "edge"],
+                ["profile": "Default", "_slug": "default"],
+            ]
+        )
+        #expect(result == [1])
+    }
 }

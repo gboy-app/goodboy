@@ -357,7 +357,15 @@ public enum DiscoveryService {
             var bestScore = 0
             for (idx, config) in suggestions.enumerated() where !coveredIndices.contains(idx) {
                 let identity = config.filter { !$0.key.hasPrefix("_") }
-                guard identity.allSatisfy({ key, value in normalizedConfig[key] == value }) else { continue }
+                // Strict equality, not subset. A device's normalized config
+                // must exactly match the suggestion's identity — same keys,
+                // same values. allSatisfy() alone (subset check) lets a
+                // device with EXTRA keys claim a sparser suggestion: e.g.
+                // an Edge-config device {profile=Default, chromeDir=Edge}
+                // would hijack the Chrome Default suggestion {profile=Default}
+                // because every key in identity is satisfied by the device's
+                // config. Strict equality disqualifies that.
+                guard identity == normalizedConfig else { continue }
                 var score = 1
                 if let suggSlug = config["_slug"], suggSlug == slug { score += 1000 }
                 if score > bestScore {
