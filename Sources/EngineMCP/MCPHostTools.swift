@@ -27,7 +27,7 @@ public final class MCPHostTools: @unchecked Sendable {
 
     private struct State {
         var tools: [MCP.Tool] = []
-        var handler: Handler?
+        var handlers: [Handler] = []
     }
 
     private let lock = OSAllocatedUnfairLock(initialState: State())
@@ -36,21 +36,27 @@ public final class MCPHostTools: @unchecked Sendable {
         lock.withLock { $0.tools }
     }
 
-    /// Register host tools and their dispatcher. Call once at startup,
-    /// before `InAppMCPServer.start()`. Subsequent calls overwrite.
+    /// Register host tools and their dispatcher. Multiple registrations
+    /// accumulate — `tools` are concatenated, `handler` is appended to
+    /// the dispatch chain. Call at startup, before `InAppMCPServer.start()`.
     public func register(tools: [MCP.Tool], handler: @escaping Handler) {
         lock.withLock { state in
-            state.tools = tools
-            state.handler = handler
+            state.tools.append(contentsOf: tools)
+            state.handlers.append(handler)
         }
     }
 
-    /// Invoke the registered handler. Returns `nil` if no host is
-    /// registered or the host doesn't recognize the tool; callers
-    /// treat `nil` as "unknown tool" and surface a standard error.
+    /// Walk the handler chain in registration order; the first non-nil
+    /// result wins. Returns `nil` when no handler claims the tool name —
+    /// callers treat `nil` as "unknown tool" and surface a standard error.
     public func handle(_ params: CallTool.Parameters) async throws -> CallTool.Result? {
-        let handler = lock.withLock { $0.handler }
-        return try await handler?(params)
+        let handlers = lock.withLock { $0.handlers }
+        for h in handlers {
+            if let result = try await h(params) {
+                return result
+            }
+        }
+        return nil
     }
 
     private init() {}

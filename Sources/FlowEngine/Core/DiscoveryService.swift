@@ -119,48 +119,51 @@ public enum DiscoveryService {
             var coveredIndices = Set<Int>()
             var matchedDeviceIds = Set<String>()
 
-            for device in existingDevices {
-                let normalizedConfig = instance.normalizeConfig(device.config)
-                if let matchIdx = suggestions.firstIndex(where: { config in
-                    config.filter { !$0.key.hasPrefix("_") }
-                        .allSatisfy { key, value in normalizedConfig[key] == value }
-                }) {
-                    coveredIndices.insert(matchIdx)
-                    matchedDeviceIds.insert(device.id)
+            // Bipartite 1:1 match between existing devices and suggestions —
+            // see `matchSuggestions` for the algorithm + bug-fix history.
+            let normalizedConfigs = existingDevices.map { instance.normalizeConfig($0.config) }
+            let matches = matchSuggestions(
+                deviceSlugs: existingDevices.map(\.slug),
+                deviceConfigs: normalizedConfigs,
+                suggestions: suggestions
+            )
+            for (i, device) in existingDevices.enumerated() {
+                guard let matchIdx = matches[i] else { continue }
+                coveredIndices.insert(matchIdx)
+                matchedDeviceIds.insert(device.id)
 
-                    // Refresh display metadata from the live suggestion.
-                    // The non-`_` config keys are the device's identity (used for matching);
-                    // `_`-prefixed keys (`_name`, `_profileName`, `_canRead`, `_canWrite`) are
-                    // recomputed each scan so that e.g. a Chrome profile rename is reflected
-                    // in the UI without losing the device row.
-                    let raw = suggestions[matchIdx]
-                    let liveConfig = raw.filter { !$0.key.hasPrefix("_") }
-                    let liveDeviceName = raw["_name"] ?? manifest.name
-                    let (liveTitle, liveSubtitle) = DeviceDisplayName.compute(
-                        tool: manifest.id, slug: device.slug,
-                        deviceName: liveDeviceName, config: liveConfig
-                    )
-                    let liveProfileName = raw["_profileName"]
-                    let liveCanRead = raw["_canRead"] == "true" || instance.canRead(slug: device.slug)
-                    let liveCanWrite = raw["_canWrite"] == "true" || instance.canWrite(slug: device.slug)
+                // Refresh display metadata from the live suggestion.
+                // The non-`_` config keys are the device's identity (used for matching);
+                // `_`-prefixed keys (`_name`, `_profileName`, `_canRead`, `_canWrite`) are
+                // recomputed each scan so that e.g. a Chrome profile rename is reflected
+                // in the UI without losing the device row.
+                let raw = suggestions[matchIdx]
+                let liveConfig = raw.filter { !$0.key.hasPrefix("_") }
+                let liveDeviceName = raw["_name"] ?? manifest.name
+                let (liveTitle, liveSubtitle) = DeviceDisplayName.compute(
+                    tool: manifest.id, slug: device.slug,
+                    deviceName: liveDeviceName, config: liveConfig
+                )
+                let liveProfileName = raw["_profileName"]
+                let liveCanRead = raw["_canRead"] == "true" || instance.canRead(slug: device.slug)
+                let liveCanWrite = raw["_canWrite"] == "true" || instance.canWrite(slug: device.slug)
 
-                    if device.name != liveTitle
-                        || device.subtitle != liveSubtitle
-                        || device.profileName != liveProfileName
-                        || device.canRead != liveCanRead
-                        || device.canWrite != liveCanWrite {
-                        var updated = device
-                        updated.name = liveTitle
-                        updated.subtitle = liveSubtitle
-                        updated.profileName = liveProfileName
-                        updated.canRead = liveCanRead
-                        updated.canWrite = liveCanWrite
-                        do {
-                            try DeviceService.shared.save(updated)
-                            metadataRefreshedIds.insert(device.id)
-                        } catch {
-                            log.error("Failed to refresh display metadata for '\(device.id)': \(error.localizedDescription)")
-                        }
+                if device.name != liveTitle
+                    || device.subtitle != liveSubtitle
+                    || device.profileName != liveProfileName
+                    || device.canRead != liveCanRead
+                    || device.canWrite != liveCanWrite {
+                    var updated = device
+                    updated.name = liveTitle
+                    updated.subtitle = liveSubtitle
+                    updated.profileName = liveProfileName
+                    updated.canRead = liveCanRead
+                    updated.canWrite = liveCanWrite
+                    do {
+                        try DeviceService.shared.save(updated)
+                        metadataRefreshedIds.insert(device.id)
+                    } catch {
+                        log.error("Failed to refresh display metadata for '\(device.id)': \(error.localizedDescription)")
                     }
                 }
             }
@@ -309,6 +312,65 @@ public enum DiscoveryService {
             errors: errors,
             resolvedKeychain: resolvedKeychain
         )
+    }
+
+    // MARK: - Suggestion Matching
+
+    /// Bipartite 1:1 matcher between existing devices and tool suggestions.
+    /// Each suggestion can be claimed by at most one device. Slug-affinity
+    /// wins when multiple uncovered suggestions share an identity-config
+    /// (e.g. Brave-suggestion and Vivaldi-suggestion both keying off
+    /// `chromeDir=…/BraveSoftware`); the device with `slug=vivaldi` claims
+    /// the Vivaldi suggestion, the device with `slug=brave` claims Brave.
+    ///
+    /// Returns one entry per `deviceSlugs` index — the matched suggestion
+    /// index, or nil if no uncovered suggestion has a compatible identity.
+    /// `nil` entries are stale devices that `discover()` will delete.
+    ///
+    /// History: replaced an earlier `firstIndex(where:)` matcher that
+    /// didn't reserve indices. When two suggestions shared a config (the
+    /// Chromium-sibling case — Arc/Opera/Vivaldi all suggesting Edge or
+    /// Brave dirs) the older matcher always returned the lowest index;
+    /// every device with that config matched suggestion 0, leaving 1+
+    /// forever uncovered → new devices minted on every discover() pass.
+    /// Same bug also defeated stale removal: every existing device covered
+    /// the same suggestion, so none fell through to the delete branch.
+    /// See `DiscoveryServiceTests.matchSuggestions_*` for the regression
+    /// scenarios.
+    @MainActor
+    static func matchSuggestions(
+        deviceSlugs: [String],
+        deviceConfigs: [[String: String]],
+        suggestions: [[String: String]]
+    ) -> [Int?] {
+        precondition(deviceSlugs.count == deviceConfigs.count,
+                     "deviceSlugs / deviceConfigs length mismatch")
+
+        var coveredIndices = Set<Int>()
+        var result: [Int?] = []
+        result.reserveCapacity(deviceSlugs.count)
+
+        for i in deviceSlugs.indices {
+            let slug = deviceSlugs[i]
+            let normalizedConfig = deviceConfigs[i]
+            var bestIdx: Int?
+            var bestScore = 0
+            for (idx, config) in suggestions.enumerated() where !coveredIndices.contains(idx) {
+                let identity = config.filter { !$0.key.hasPrefix("_") }
+                guard identity.allSatisfy({ key, value in normalizedConfig[key] == value }) else { continue }
+                var score = 1
+                if let suggSlug = config["_slug"], suggSlug == slug { score += 1000 }
+                if score > bestScore {
+                    bestScore = score
+                    bestIdx = idx
+                }
+            }
+            if let matchIdx = bestIdx {
+                coveredIndices.insert(matchIdx)
+            }
+            result.append(bestIdx)
+        }
+        return result
     }
 
     // MARK: - Private Helpers

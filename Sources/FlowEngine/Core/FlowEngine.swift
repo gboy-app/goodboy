@@ -139,30 +139,23 @@ public final class FlowEngine: ObservableObject {
                             "passkey_userDisplayName": "passkey",
                             "passkey_key": "passkey",
                         ]
-                        // label -> ordered sample entry labels (url/username)
-                        var samplesByLabel: [String: [String]] = [:]
                         var countsByLabel: [String: Int] = [:]
                         for item in securedBox.items {
-                            let entryLabel = !item.url.isEmpty ? item.url : (!item.username.isEmpty ? item.username : "(unnamed)")
                             var seenLabelsForItem = Set<String>()
                             for key in item.presentKeys.subtracting(destKeySet) {
                                 if key == "sourceDeviceId" || key == "accountEmail" { continue }
                                 let label = fieldNames[key] ?? key
                                 if seenLabelsForItem.insert(label).inserted {
                                     countsByLabel[label, default: 0] += 1
-                                    samplesByLabel[label, default: []].append(entryLabel)
                                 }
                             }
                         }
                         if !countsByLabel.isEmpty {
                             let destName = deviceService.get(id: deviceId)?.name ?? deviceId
                             let parts = countsByLabel.sorted(by: { $0.value > $1.value }).map { label, count -> String in
-                                let samples = samplesByLabel[label] ?? []
-                                let shown = samples.prefix(3).joined(separator: ", ")
-                                let more = count > 3 ? " and \(count - 3) more" : ""
-                                return "\(label) field on \(count) \(count == 1 ? "entry" : "entries") (\(shown)\(more))"
+                                return "\(label) (\(count) \(count == 1 ? "entry" : "entries"))"
                             }
-                            let msg = "\(destName) can't store: \(parts.joined(separator: "; ")) — data will be lost"
+                            let msg = "\(destName) doesn't support: \(parts.joined(separator: ", ")) — these fields won't transfer"
                             log.info("\(msg, privacy: .private)")
                             emit(.stepComplete(flowId: flowId, deviceId: deviceId, result: .success(
                                 count: 0,
@@ -258,8 +251,7 @@ public final class FlowEngine: ObservableObject {
             }
         }
 
-        var params = resolved.params
-        for (k, v) in extraParams { params[k] = v }
+        let params = resolved.params.merging(extraParams) { _, new in new }
 
         // connect() — real auth test before execute
         // Run on a non-cooperative thread to avoid blocking the main actor
